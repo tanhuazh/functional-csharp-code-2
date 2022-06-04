@@ -28,7 +28,7 @@ namespace Examples.Chapter9
 
    public class TypeInference_Delegate
    {
-      readonly string separator = "! ";
+      static readonly string separator = "! ";
 
       // 1. field
       static readonly Func<Greeting, Name, PersonalizedGreeting> GreeterField
@@ -39,7 +39,7 @@ namespace Examples.Chapter9
 
 
       // 2. property
-      Func<Greeting, Name, PersonalizedGreeting> GreeterProperty
+      public static Func<Greeting, Name, PersonalizedGreeting> GreeterProperty
          => (gr, name) => $"{gr}{separator}{name}";
 
       Func<Name, PersonalizedGreeting> CreateGreetingWith_Property(Greeting greeting)
