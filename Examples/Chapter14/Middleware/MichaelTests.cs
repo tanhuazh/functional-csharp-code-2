@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Examples.Chapter2.DbLogger;
 using Microsoft.Extensions.Logging;
 using System.Data;
 using System.Data.SqlClient;
@@ -53,15 +54,18 @@ namespace Examples.Chapter14
             Func<Func<SqlConnection, dynamic>, dynamic> mw,
             Func<SqlConnection, Func<Func<SqlTransaction, dynamic>, dynamic>> f)
         {
-            // the essense of middleware is to apply a continuation Func<T, dynamic> and get the value dynamic
-            return (Func<SqlTransaction, dynamic> cont) =>
+            // the essense of middleware is to apply a continuation Func<T, dynamic> and get the value
+            // this makes sure that continuation Func<SqlConnection, dynamic> is called within the scope of
+            // continuation Func<SqlConnection, dynamic>
+            return (Func<SqlTransaction, dynamic> innerContinuation) =>
             {
-                dynamic ret = mw((SqlConnection t) =>
+                Func<SqlConnection, dynamic> outerContinuation = (SqlConnection t) =>
                 {
                     Func<Func<SqlTransaction, dynamic>, dynamic> mw2 = f(t);
-                    dynamic ret = mw2(cont);
+                    dynamic ret = mw2(innerContinuation);
                     return ret;
-                });
+                };
+                dynamic ret = mw(outerContinuation);
                 return ret;
             };
         }
@@ -94,6 +98,22 @@ namespace Examples.Chapter14
             Func<Func<SqlConnection, int>, int> middleware = cont => Connect("connection string", cont);
 
             var result = middleware(continuation);
+
+            var middleware2 = Connect("connection string").SelectMany(conn =>
+            {
+                return Transact(conn);
+            }).Select(trans =>
+            {
+                return trans.Connection.ExecuteScalar<int>("select 100");
+            });
+
+            var result2 = middleware2.Run();
         }
+
+        static Middleware<SqlConnection> Connect(ConnectionString connString)
+            => f => ConnectionHelper.Connect(connString, f);
+
+        static Middleware<SqlTransaction> Transact(SqlConnection conn)
+            => f => ConnectionHelper.Transact(conn, f);
     }
 }
